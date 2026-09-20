@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Collocation Match</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252840;
+    --accent-make: #4f8ef7;
+    --accent-do: #f74f8e;
+    --accent-take: #4ff7b0;
+    --accent-have: #f7c44f;
+    --text: #f0f0f8;
+    --text-dim: #8888aa;
+    --correct: #4ff7b0;
+    --wrong: #f74f4f;
+    --border: #2e3150;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; margin: 0; padding: 0; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    overflow-x: hidden;
+  }
+  .screen { display: none; width: 100%; max-width: 920px; padding: 24px 20px; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  /* INTRO */
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    letter-spacing: -1px;
+    margin: 32px 0 6px; line-height: 1; text-align: center;
+  }
+  .logo span:nth-child(1){color:var(--accent-make)}
+  .logo span:nth-child(2){color:var(--accent-do)}
+  .logo span:nth-child(3){color:var(--accent-take)}
+  .logo span:nth-child(4){color:var(--accent-have)}
+  .tagline { color:var(--text-dim); font-size:.9rem; margin-bottom:24px; text-align:center; }
+
+  .verb-preview { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:28px; }
+  .verb-pill { padding:8px 20px; border-radius:999px; font-weight:700; font-size:.9rem; }
+  .pill-make{background:var(--accent-make);color:#0f1117}
+  .pill-do  {background:var(--accent-do);  color:#0f1117}
+  .pill-take{background:var(--accent-take);color:#0f1117}
+  .pill-have{background:var(--accent-have);color:#0f1117}
+
+  .setup-box {
+    width:100%; max-width:520px;
+    background:var(--surface); border-radius:16px;
+    padding:24px; border:1px solid var(--border);
+  }
+  .setup-section { margin-bottom:20px; }
+  .setup-label { font-size:.78rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+
+  /* DIFFICULTY PILLS */
+  .diff-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .diff-pill {
+    padding:8px 18px; border-radius:8px; border:1.5px solid var(--border);
+    background:transparent; color:var(--text-dim); cursor:pointer;
+    font-family:'Space Grotesk',sans-serif; font-size:.85rem; font-weight:600;
+    transition:all .15s;
+  }
+  .diff-pill:hover { border-color:var(--text-dim); color:var(--text); }
+  .diff-pill.active { border-color:#fff; color:#fff; background:var(--surface2); }
+  .diff-pill[data-diff="easy"].active   { border-color:var(--accent-take); color:var(--accent-take); }
+  .diff-pill[data-diff="medium"].active { border-color:var(--accent-have); color:var(--accent-have); }
+  .diff-pill[data-diff="hard"].active   { border-color:var(--accent-do);   color:var(--accent-do); }
+  .diff-pill[data-diff="mixed"].active  { border-color:var(--accent-make); color:var(--accent-make); }
+
+  .player-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .player-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+  .dot-1{background:var(--accent-make)} .dot-2{background:var(--accent-do)}
+  .player-input {
+    flex:1; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:9px 13px; color:var(--text);
+    font-family:'Space Grotesk',sans-serif; font-size:.9rem; outline:none;
+    transition:border-color .2s;
+  }
+  .player-input:focus{border-color:var(--accent-make)}
+
+  .rounds-row { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  .rounds-label{font-size:.82rem;color:var(--text-dim);flex-shrink:0}
+  .rounds-btn {
+    width:32px;height:32px; border-radius:7px; background:var(--surface2);
+    border:1px solid var(--border); color:var(--text); font-size:1rem;
+    cursor:pointer; display:flex;align-items:center;justify-content:center;
+  }
+  .rounds-btn:hover{background:var(--border)}
+  .rounds-display{font-family:'Space Mono',monospace;font-size:1rem;width:28px;text-align:center}
+
+  .btn-start {
+    width:100%; padding:13px; background:var(--accent-make); color:#0f1117;
+    font-family:'Space Grotesk',sans-serif; font-size:1rem; font-weight:700;
+    border:none; border-radius:10px; cursor:pointer; transition:opacity .2s,transform .1s;
+  }
+  .btn-start:hover{opacity:.9;transform:translateY(-1px)}
+
+  /* SHARE PANEL */
+  .share-panel {
+    width:100%; max-width:520px; margin-top:16px;
+    background:var(--surface); border-radius:16px;
+    padding:20px 24px; border:1px solid var(--border);
+  }
+  .share-title { font-size:.78rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+  .share-inner { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  #qr-box { background:#fff; padding:6px; border-radius:8px; flex-shrink:0; width:100px; height:100px; }
+  #qr-box canvas, #qr-box img { width:88px !important; height:88px !important; }
+  .share-right { flex:1; min-width:180px; }
+  .share-url-label { font-size:.75rem; color:var(--text-dim); margin-bottom:6px; }
+  .share-url-box { display:flex; gap:6px; }
+  .share-url {
+    flex:1; background:var(--surface2); border:1px solid var(--border);
+    border-radius:7px; padding:7px 10px; color:var(--text-dim);
+    font-size:.72rem; font-family:'Space Mono',monospace;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; outline:none;
+    cursor:text; user-select:all;
+  }
+  .btn-copy {
+    padding:7px 12px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:7px; color:var(--text); font-size:.75rem; font-weight:600;
+    cursor:pointer; white-space:nowrap; transition:all .15s; font-family:'Space Grotesk',sans-serif;
+  }
+  .btn-copy:hover{border-color:var(--text)}
+  .btn-copy.copied{border-color:var(--correct);color:var(--correct)}
+  .share-hint { font-size:.72rem; color:var(--text-dim); margin-top:8px; line-height:1.5; }
+
+  /* GAME */
+  .game-header {
+    width:100%; display:flex; justify-content:space-between; align-items:flex-start;
+    gap:12px; margin-bottom:16px;
+  }
+  .score-card {
+    flex:1; background:var(--surface); border-radius:12px;
+    padding:12px 14px; border:1px solid var(--border); text-align:center;
+    transition:box-shadow .3s,border-color .3s;
+  }
+  .score-card.active-turn.p1{border-color:var(--accent-make);box-shadow:0 0 0 2px var(--accent-make)}
+  .score-card.active-turn.p2{border-color:var(--accent-do);box-shadow:0 0 0 2px var(--accent-do)}
+  .score-name{font-size:.75rem;color:var(--text-dim);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .score-num{font-family:'Space Mono',monospace;font-size:1.9rem;font-weight:700;line-height:1}
+  .p1 .score-num{color:var(--accent-make)} .p2 .score-num{color:var(--accent-do)}
+
+  .timer-block{flex-shrink:0;width:64px;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .timer-num{font-family:'Space Mono',monospace;font-size:2rem;font-weight:700;line-height:1;transition:color .3s}
+  .timer-num.urgent{color:var(--wrong)}
+  .timer-bar-bg{width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden}
+  .timer-bar{height:100%;background:var(--accent-make);border-radius:99px;transition:width 1s linear,background .3s}
+
+  .round-info{font-size:.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px}
+  .diff-badge{
+    font-size:.72rem;padding:3px 10px;border-radius:99px;margin-bottom:18px;font-weight:600;
+    display:inline-block;
+  }
+  .diff-badge.easy  {background:rgba(79,247,176,.15);color:var(--accent-take)}
+  .diff-badge.medium{background:rgba(247,196,79,.15);color:var(--accent-have)}
+  .diff-badge.hard  {background:rgba(247,79,142,.15);color:var(--accent-do)}
+  .diff-badge.mixed {background:rgba(79,142,247,.15);color:var(--accent-make)}
+
+  .noun-area{display:flex;flex-direction:column;align-items:center;margin-bottom:28px}
+  .turn-label{font-size:.78rem;color:var(--text-dim);margin-bottom:8px}
+  .noun-card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:14px;padding:24px 44px;text-align:center;
+  }
+  .noun-article{font-size:.8rem;color:var(--text-dim);margin-bottom:2px}
+  .noun-word{font-family:'Space Mono',monospace;font-size:clamp(1.3rem,4vw,1.9rem);font-weight:700}
+  .noun-context{font-size:.72rem;color:var(--text-dim);margin-top:6px;font-style:italic}
+
+  .verb-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:480px}
+  .verb-btn{
+    padding:17px 10px;border-radius:12px;
+    font-family:'Space Mono',monospace;font-size:1.25rem;font-weight:700;
+    border:2px solid transparent;cursor:pointer;
+    transition:transform .1s,opacity .15s;
+  }
+  .verb-btn:hover{transform:translateY(-2px)}
+  .verb-btn:active{transform:translateY(0)}
+  .btn-make{background:var(--accent-make);color:#0f1117}
+  .btn-do  {background:var(--accent-do);  color:#0f1117}
+  .btn-take{background:var(--accent-take);color:#0f1117}
+  .btn-have{background:var(--accent-have);color:#0f1117}
+  .verb-btn.disabled{opacity:.25;pointer-events:none}
+  .verb-btn.correct-flash{animation:flashC .4s ease}
+  .verb-btn.wrong-flash  {animation:flashW .3s ease}
+  @keyframes flashC{0%{filter:brightness(1)}50%{filter:brightness(2)}100%{filter:brightness(1)}}
+  @keyframes flashW{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  .kbd-hint{font-size:.68rem;color:var(--text-dim);text-align:center;margin-top:12px}
+  kbd{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.65rem}
+
+  /* FEEDBACK */
+  .feedback-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:100}
+  .feedback-badge{
+    font-family:'Space Mono',monospace;font-size:1.3rem;font-weight:700;
+    padding:12px 26px;border-radius:12px;
+    opacity:0;transform:translateY(10px) scale(.9);transition:opacity .2s,transform .2s;
+  }
+  .feedback-badge.show{opacity:1;transform:translateY(0) scale(1)}
+  .feedback-badge.correct{background:var(--correct);color:#0f1117}
+  .feedback-badge.wrong  {background:var(--wrong);  color:#fff}
+  .feedback-badge.timeout{background:var(--accent-have);color:#0f1117}
+
+  /* RESULT */
+  .result-title{font-family:'Space Mono',monospace;font-size:clamp(1.4rem,4vw,2.2rem);margin:28px 0 6px;text-align:center;line-height:1.2}
+  .result-sub{color:var(--text-dim);font-size:.88rem;margin-bottom:28px;text-align:center}
+  .result-cards{display:flex;gap:14px;width:100%;max-width:460px;margin-bottom:24px}
+  .result-card{flex:1;background:var(--surface);border-radius:14px;padding:20px 14px;text-align:center;border:1px solid var(--border)}
+  .result-card.winner-p1{border:2px solid var(--accent-make)}
+  .result-card.winner-p2{border:2px solid var(--accent-do)}
+  .result-crown{font-size:1.4rem;margin-bottom:4px;min-height:28px}
+  .result-pname{font-size:.76rem;color:var(--text-dim);margin-bottom:4px}
+  .result-score{font-family:'Space Mono',monospace;font-size:2.8rem;font-weight:700;line-height:1}
+  .result-card.winner-p1 .result-score{color:var(--accent-make)}
+  .result-card.winner-p2 .result-score{color:var(--accent-do)}
+
+  .result-history{width:100%;max-width:500px;background:var(--surface);border-radius:12px;padding:14px;border:1px solid var(--border);margin-bottom:20px;max-height:260px;overflow-y:auto}
+  .history-title{font-size:.72rem;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+  .history-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:.8rem}
+  .history-item:last-child{border-bottom:none}
+  .h-noun{flex:1;font-family:'Space Mono',monospace;font-size:.75rem}
+  .h-answer{font-weight:600}
+  .h-correct{color:var(--correct)} .h-wrong{color:var(--wrong)}
+  .h-who{font-size:.7rem;color:var(--text-dim)}
+  .h-diff{font-size:.65rem;padding:1px 6px;border-radius:99px;margin-left:2px}
+  .h-diff.easy{background:rgba(79,247,176,.15);color:var(--accent-take)}
+  .h-diff.medium{background:rgba(247,196,79,.15);color:var(--accent-have)}
+  .h-diff.hard{background:rgba(247,79,142,.15);color:var(--accent-do)}
+
+  .btn-play-again{
+    padding:12px 36px;background:transparent;color:var(--text);
+    font-family:'Space Grotesk',sans-serif;font-size:.95rem;font-weight:600;
+    border:2px solid var(--border);border-radius:10px;cursor:pointer;
+    transition:border-color .2s;margin-bottom:48px;
+  }
+  .btn-play-again:hover{border-color:var(--text)}
+
+  @media(max-width:480px){
+    .verb-btn{font-size:1.05rem;padding:15px 8px}
+    .noun-card{padding:18px 24px}
+    .result-cards{flex-direction:column;max-width:260px}
+    .share-inner{flex-direction:column;align-items:center}
+  }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="screen active" id="screen-intro">
+  <div class="logo"><span>make</span> <span>do</span><br><span>take</span> <span>have</span></div>
+  <p class="tagline">Verb–Noun Collocations · 2 Players</p>
+  <div class="verb-preview">
+    <span class="verb-pill pill-make">MAKE</span>
+    <span class="verb-pill pill-do">DO</span>
+    <span class="verb-pill pill-take">TAKE</span>
+    <span class="verb-pill pill-have">HAVE</span>
+  </div>
+
+  <div class="setup-box">
+    <!-- DIFFICULTY -->
+    <div class="setup-section">
+      <div class="setup-label">Difficulty</div>
+      <div class="diff-row">
+        <button class="diff-pill active" data-diff="easy">🟢 Easy</button>
+        <button class="diff-pill" data-diff="medium">🟡 Medium</button>
+        <button class="diff-pill" data-diff="hard">🔴 Hard</button>
+        <button class="diff-pill" data-diff="mixed">🎲 Mixed</button>
+      </div>
+      <div id="diff-desc" style="font-size:.75rem;color:var(--text-dim);margin-top:8px;line-height:1.5">
+        Common everyday collocations — great for beginners.
+      </div>
+    </div>
+
+    <!-- PLAYERS -->
+    <div class="setup-section">
+      <div class="setup-label">Player Names</div>
+      <div class="player-row"><div class="player-dot dot-1"></div><input class="player-input" id="p1-name" type="text" placeholder="Player 1" maxlength="16"></div>
+      <div class="player-row"><div class="player-dot dot-2"></div><input class="player-input" id="p2-name" type="text" placeholder="Player 2" maxlength="16"></div>
+    </div>
+
+    <!-- ROUNDS -->
+    <div class="rounds-row">
+      <span class="rounds-label">Rounds:</span>
+      <button class="rounds-btn" id="rounds-dec">−</button>
+      <span class="rounds-display" id="rounds-val">10</span>
+      <button class="rounds-btn" id="rounds-inc">+</button>
+    </div>
+
+    <button class="btn-start" id="btn-start">Start Game</button>
+  </div>
+
+  <!-- SHARE PANEL -->
+  <div class="share-panel">
+    <div class="share-title">Share this game</div>
+    <div class="share-inner">
+      <div id="qr-box"></div>
+      <div class="share-right">
+        <div class="share-url-label">Link to this page</div>
+        <div class="share-url-box">
+          <input class="share-url" id="share-url" readonly>
+          <button class="btn-copy" id="btn-copy">Copy</button>
+        </div>
+        <div class="share-hint">Scan QR code or share the link to open on another device — iPad, phone, or any browser.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="game-header">
+    <div class="score-card p1" id="sc-p1">
+      <div class="score-name" id="sc-p1-name">Player 1</div>
+      <div class="score-num" id="sc-p1-score">0</div>
+    </div>
+    <div class="timer-block">
+      <div class="timer-num" id="timer-num">10</div>
+      <div class="timer-bar-bg"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+    </div>
+    <div class="score-card p2" id="sc-p2">
+      <div class="score-name" id="sc-p2-name">Player 2</div>
+      <div class="score-num" id="sc-p2-score">0</div>
+    </div>
+  </div>
+  <div class="round-info" id="round-info">Round 1 / 10</div>
+  <div class="diff-badge easy" id="game-diff-badge">Easy</div>
+
+  <div class="noun-area">
+    <div class="turn-label" id="turn-label">Player 1's turn</div>
+    <div class="noun-card">
+      <div class="noun-article" id="noun-article">a</div>
+      <div class="noun-word" id="noun-word">mistake</div>
+      <div class="noun-context" id="noun-context"></div>
+    </div>
+  </div>
+
+  <div class="verb-grid">
+    <button class="verb-btn btn-make" data-verb="make">MAKE</button>
+    <button class="verb-btn btn-do"   data-verb="do">DO</button>
+    <button class="verb-btn btn-take" data-verb="take">TAKE</button>
+    <button class="verb-btn btn-have" data-verb="have">HAVE</button>
+  </div>
+  <div class="kbd-hint"><kbd>Q</kbd> MAKE &nbsp; <kbd>W</kbd> DO &nbsp; <kbd>E</kbd> TAKE &nbsp; <kbd>R</kbd> HAVE</div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-title" id="result-title">Game Over!</div>
+  <div class="result-sub" id="result-sub">Final Scores</div>
+  <div class="result-cards">
+    <div class="result-card" id="res-p1">
+      <div class="result-crown" id="res-p1-crown"></div>
+      <div class="result-pname" id="res-p1-name">Player 1</div>
+      <div class="result-score" id="res-p1-score">0</div>
+    </div>
+    <div class="result-card" id="res-p2">
+      <div class="result-crown" id="res-p2-crown"></div>
+      <div class="result-pname" id="res-p2-name">Player 2</div>
+      <div class="result-score" id="res-p2-score">0</div>
+    </div>
+  </div>
+  <div class="result-history" id="result-history"></div>
+  <button class="btn-play-again" id="btn-again">Play Again</button>
+</div>
+
+<div class="feedback-overlay">
+  <div class="feedback-badge" id="feedback-badge"></div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// difficulty: easy | medium | hard
+const ALL_CARDS = [
+  // ── EASY ──────────────────────────────────────────────────────────────────
+  // MAKE easy
+  {a:'a',  n:'mistake',       v:'make', d:'easy',   ctx:'Everyone makes _.'},
+  {a:'a',  n:'decision',      v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'promise',       v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'phone call',    v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'plan',          v:'make', d:'easy',   ctx:''},
+  {a:'',   n:'progress',      v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'suggestion',    v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'noise',         v:'make', d:'easy',   ctx:''},
+  {a:'',   n:'money',         v:'make', d:'easy',   ctx:''},
+  {a:'a',  n:'wish',          v:'make', d:'easy',   ctx:''},
+  // DO easy
+  {a:'',   n:'homework',      v:'do',   d:'easy',   ctx:'Students _ homework every night.'},
+  {a:'',   n:'exercise',      v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'the dishes',    v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'the laundry',   v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'shopping',      v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'business',      v:'do',   d:'easy',   ctx:''},
+  {a:'a',  n:'good job',      v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'yoga',          v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'the cooking',   v:'do',   d:'easy',   ctx:''},
+  {a:'',   n:'someone a favour',v:'do', d:'easy',   ctx:''},
+  // TAKE easy
+  {a:'a',  n:'break',         v:'take', d:'easy',   ctx:'Let\'s _ a break.'},
+  {a:'a',  n:'photo',         v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'shower',        v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'nap',           v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'look',          v:'take', d:'easy',   ctx:''},
+  {a:'',   n:'notes',         v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'walk',          v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'taxi',          v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'seat',          v:'take', d:'easy',   ctx:''},
+  {a:'a',  n:'test',          v:'take', d:'easy',   ctx:''},
+  // HAVE easy
+  {a:'a',  n:'meal',          v:'have', d:'easy',   ctx:'Let\'s _ a meal together.'},
+  {a:'a',  n:'drink',         v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'dream',         v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'good time',     v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'problem',       v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'headache',      v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'party',         v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'baby',          v:'have', d:'easy',   ctx:''},
+  {a:'a',  n:'chat',          v:'have', d:'easy',   ctx:''},
+  {a:'',   n:'fun',           v:'have', d:'easy',   ctx:''},
+
+  // ── MEDIUM ────────────────────────────────────────────────────────────────
+  // MAKE medium
+  {a:'a',  n:'difference',    v:'make', d:'medium', ctx:''},
+  {a:'an', n:'effort',        v:'make', d:'medium', ctx:''},
+  {a:'a',  n:'complaint',     v:'make', d:'medium', ctx:''},
+  {a:'a',  n:'profit',        v:'make', d:'medium', ctx:''},
+  {a:'',   n:'friends',       v:'make', d:'medium', ctx:'It\'s easy to _ friends here.'},
+  {a:'a',  n:'speech',        v:'make', d:'medium', ctx:''},
+  {a:'an', n:'appointment',   v:'make', d:'medium', ctx:''},
+  {a:'',   n:'sense',         v:'make', d:'medium', ctx:'Does this _ sense?'},
+  {a:'a',  n:'contribution',  v:'make', d:'medium', ctx:''},
+  {a:'',   n:'room',          v:'make', d:'medium', ctx:'_ room for everyone.'},
+  // DO medium
+  {a:'',   n:'research',      v:'do',   d:'medium', ctx:''},
+  {a:'a',  n:'course',        v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'damage',        v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'an experiment', v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'someone proud', v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'one\'s best',   v:'do',   d:'medium', ctx:'Always _ your best.'},
+  {a:'',   n:'volunteer work',v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'an internship', v:'do',   d:'medium', ctx:''},
+  {a:'',   n:'overtime',      v:'do',   d:'medium', ctx:''},
+  {a:'a',  n:'presentation',  v:'do',   d:'medium', ctx:''},
+  // TAKE medium
+  {a:'a',  n:'risk',          v:'take', d:'medium', ctx:''},
+  {a:'',   n:'action',        v:'take', d:'medium', ctx:''},
+  {a:'',   n:'responsibility',v:'take', d:'medium', ctx:''},
+  {a:'',   n:'medicine',      v:'take', d:'medium', ctx:''},
+  {a:'a',  n:'course',        v:'take', d:'medium', ctx:''},
+  {a:'',   n:'turns',         v:'take', d:'medium', ctx:'Let\'s _ turns.'},
+  {a:'a',  n:'trip',          v:'take', d:'medium', ctx:''},
+  {a:'an', n:'exam',          v:'take', d:'medium', ctx:''},
+  {a:'',   n:'care of',       v:'take', d:'medium', ctx:'_ care of yourself.'},
+  {a:'a',  n:'deep breath',   v:'take', d:'medium', ctx:''},
+  // HAVE medium
+  {a:'a',  n:'conversation',  v:'have', d:'medium', ctx:''},
+  {a:'a',  n:'meeting',       v:'have', d:'medium', ctx:''},
+  {a:'an', n:'argument',      v:'have', d:'medium', ctx:''},
+  {a:'an', n:'idea',          v:'have', d:'medium', ctx:'I _ an idea!'},
+  {a:'a',  n:'preference',    v:'have', d:'medium', ctx:''},
+  {a:'a',  n:'look at',       v:'have', d:'medium', ctx:'Can I _ a look at that?'},
+  {a:'a',  n:'say',           v:'have', d:'medium', ctx:'Everyone should _ a say.'},
+  {a:'',   n:'difficulty',    v:'have', d:'medium', ctx:''},
+  {a:'an', n:'opinion',       v:'have', d:'medium', ctx:''},
+  {a:'a',  n:'point',         v:'have', d:'medium', ctx:'You _ a point.'},
+
+  // ── HARD ──────────────────────────────────────────────────────────────────
+  // MAKE hard
+  {a:'',   n:'ends meet',     v:'make', d:'hard',   ctx:'Hard to _ ends meet these days.'},
+  {a:'',   n:'a beeline for', v:'make', d:'hard',   ctx:'She made a beeline for the door.'},
+  {a:'',   n:'light of',      v:'make', d:'hard',   ctx:'Don\'t _ light of the situation.'},
+  {a:'',   n:'headway',       v:'make', d:'hard',   ctx:'We\'re making headway on the project.'},
+  {a:'',   n:'amends',        v:'make', d:'hard',   ctx:'He tried to _ amends.'},
+  {a:'a',  n:'concession',    v:'make', d:'hard',   ctx:''},
+  {a:'',   n:'an inference',  v:'make', d:'hard',   ctx:''},
+  {a:'a',  n:'stipulation',   v:'make', d:'hard',   ctx:''},
+  {a:'',   n:'allowances',    v:'make', d:'hard',   ctx:'_ allowances for mistakes.'},
+  {a:'',   n:'provisions',    v:'make', d:'hard',   ctx:''},
+  // DO hard
+  {a:'',   n:'justice to',    v:'do',   d:'hard',   ctx:'This photo doesn\'t _ justice to her.'},
+  {a:'',   n:'away with',     v:'do',   d:'hard',   ctx:'We should _ away with old rules.'},
+  {a:'',   n:'wonders',       v:'do',   d:'hard',   ctx:'Exercise _ wonders for you.'},
+  {a:'',   n:'a number on',   v:'do',   d:'hard',   ctx:'Stress can _ a number on health.'},
+  {a:'',   n:'the rounds',    v:'do',   d:'hard',   ctx:'The news did the rounds quickly.'},
+  {a:'',   n:'one\'s bidding',v:'do',   d:'hard',   ctx:''},
+  {a:'',   n:'the honours',   v:'do',   d:'hard',   ctx:'Would you _ the honours?'},
+  {a:'',   n:'a disservice',  v:'do',   d:'hard',   ctx:''},
+  {a:'',   n:'penance',       v:'do',   d:'hard',   ctx:''},
+  {a:'',   n:'the groundwork',v:'do',   d:'hard',   ctx:'We need to _ the groundwork first.'},
+  // TAKE hard
+  {a:'',   n:'stock of',      v:'take', d:'hard',   ctx:'Let\'s _ stock of what we have.'},
+  {a:'',   n:'umbrage',       v:'take', d:'hard',   ctx:'She took umbrage at the comment.'},
+  {a:'',   n:'precedence',    v:'take', d:'hard',   ctx:'Safety _ precedence over speed.'},
+  {a:'',   n:'a toll on',     v:'take', d:'hard',   ctx:'Stress _ a toll on your health.'},
+  {a:'',   n:'the plunge',    v:'take', d:'hard',   ctx:'He finally took the plunge.'},
+  {a:'',   n:'issue with',    v:'take', d:'hard',   ctx:'I _ issue with that statement.'},
+  {a:'',   n:'the initiative',v:'take', d:'hard',   ctx:''},
+  {a:'',   n:'precedent',     v:'take', d:'hard',   ctx:'This decision _ precedent.'},
+  {a:'',   n:'the helm',      v:'take', d:'hard',   ctx:'She took the helm of the company.'},
+  {a:'',   n:'a stance',      v:'take', d:'hard',   ctx:''},
+  // HAVE hard
+  {a:'',   n:'reservations',  v:'have', d:'hard',   ctx:'I _ reservations about this plan.'},
+  {a:'',   n:'a bearing on',  v:'have', d:'hard',   ctx:'This will _ a bearing on the outcome.'},
+  {a:'',   n:'clout',         v:'have', d:'hard',   ctx:'She _ a lot of clout in the industry.'},
+  {a:'',   n:'misgivings',    v:'have', d:'hard',   ctx:''},
+  {a:'a',  n:'vested interest',v:'have',d:'hard',   ctx:''},
+  {a:'',   n:'the edge over', v:'have', d:'hard',   ctx:'We _ the edge over competitors.'},
+  {a:'',   n:'the upper hand',v:'have', d:'hard',   ctx:''},
+  {a:'a',  n:'premonition',   v:'have', d:'hard',   ctx:'She had a premonition of danger.'},
+  {a:'',   n:'scruples',      v:'have', d:'hard',   ctx:''},
+  {a:'a',  n:'contingency plan',v:'have',d:'hard',  ctx:''},
+];
+
+function byDiff(d) {
+  if (d === 'mixed') return ALL_CARDS;
+  return ALL_CARDS.filter(c => c.d === d);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = {
+  p1:'Player 1', p2:'Player 2',
+  totalRounds:10, round:0,
+  currentPlayer:1,
+  scores:[0,0],
+  deck:[], currentCard:null,
+  timer:null, timeLeft:10,
+  locked:false, history:[],
+  difficulty:'easy',
+};
+const TIMER_MAX = 10;
+
+// ── ELEMENTS ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const screens = { intro:$('screen-intro'), game:$('screen-game'), result:$('screen-result') };
+
+// ── QR + SHARE ────────────────────────────────────────────────────────────────
+(function initShare() {
+  const url = window.location.href;
+  $('share-url').value = url;
+  try {
+    new QRCode($('qr-box'), {
+      text: url,
+      width: 88, height: 88,
+      colorDark: '#0f1117', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e) {
+    $('qr-box').innerHTML = '<div style="font-size:.65rem;color:#888;padding:8px;text-align:center">QR unavailable</div>';
+  }
+  $('btn-copy').addEventListener('click', () => {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('btn-copy');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      $('share-url').select();
+      document.execCommand('copy');
+    });
+  });
+})();
+
+// ── DIFFICULTY ────────────────────────────────────────────────────────────────
+const DIFF_DESC = {
+  easy:   'Common everyday collocations — great for beginners.',
+  medium: 'More variety and nuance — good for intermediate learners.',
+  hard:   'Idiomatic & advanced collocations — challenging for all!',
+  mixed:  'All difficulty levels shuffled together — ultimate challenge!',
+};
+document.querySelectorAll('.diff-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.difficulty = btn.dataset.diff;
+    $('diff-desc').textContent = DIFF_DESC[state.difficulty];
+  });
+});
+
+// ── ROUNDS ────────────────────────────────────────────────────────────────────
+let totalRounds = 10;
+$('rounds-dec').addEventListener('click', () => { totalRounds = Math.max(4, totalRounds-2); $('rounds-val').textContent = totalRounds; });
+$('rounds-inc').addEventListener('click', () => { totalRounds = Math.min(20, totalRounds+2); $('rounds-val').textContent = totalRounds; });
+
+// ── SCREENS ───────────────────────────────────────────────────────────────────
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+$('btn-start').addEventListener('click', () => {
+  state.p1 = $('p1-name').value.trim() || 'Player 1';
+  state.p2 = $('p2-name').value.trim() || 'Player 2';
+  state.totalRounds = totalRounds;
+  state.round = 0; state.scores = [0,0]; state.currentPlayer = 1;
+  state.deck = shuffle(byDiff(state.difficulty));
+  state.history = [];
+  $('sc-p1-name').textContent = state.p1;
+  $('sc-p2-name').textContent = state.p2;
+
+  const dLabel = {easy:'🟢 Easy',medium:'🟡 Medium',hard:'🔴 Hard',mixed:'🎲 Mixed'};
+  const badge = $('game-diff-badge');
+  badge.textContent = dLabel[state.difficulty];
+  badge.className = 'diff-badge ' + state.difficulty;
+
+  showScreen('game');
+  nextRound();
+});
+
+// ── ROUND ─────────────────────────────────────────────────────────────────────
+function nextRound() {
+  if (state.round >= state.totalRounds) { endGame(); return; }
+  state.round++;
+  if (state.deck.length === 0) state.deck = shuffle(byDiff(state.difficulty));
+  state.currentCard = state.deck.pop();
+  state.locked = false;
+
+  updateScoreCards();
+  $('round-info').textContent = `Round ${state.round} / ${state.totalRounds}`;
+  $('turn-label').textContent = `${state.currentPlayer===1?state.p1:state.p2}'s turn`;
+  $('noun-article').textContent = state.currentCard.a || '';
+  $('noun-word').textContent = state.currentCard.n;
+  $('noun-context').textContent = state.currentCard.ctx || '';
+  document.querySelectorAll('.verb-btn').forEach(b => {
+    b.classList.remove('disabled','correct-flash','wrong-flash');
+    b.style.opacity = '';
+  });
+  startTimer();
+}
+
+function updateScoreCards() {
+  $('sc-p1-score').textContent = state.scores[0];
+  $('sc-p2-score').textContent = state.scores[1];
+  const s1 = $('sc-p1'), s2 = $('sc-p2');
+  s1.className = 'score-card p1' + (state.currentPlayer===1?' active-turn':'');
+  s2.className = 'score-card p2' + (state.currentPlayer===2?' active-turn':'');
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function startTimer() {
+  clearInterval(state.timer);
+  state.timeLeft = TIMER_MAX;
+  updateTimerUI();
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    updateTimerUI();
+    if (state.timeLeft <= 0) { clearInterval(state.timer); handleTimeout(); }
+  }, 1000);
+}
+function updateTimerUI() {
+  $('timer-num').textContent = state.timeLeft;
+  $('timer-num').classList.toggle('urgent', state.timeLeft <= 3);
+  $('timer-bar').style.width = (state.timeLeft/TIMER_MAX*100)+'%';
+  $('timer-bar').style.background = state.timeLeft<=3 ? 'var(--wrong)' : 'var(--accent-make)';
+}
+
+// ── ANSWER ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.verb-btn').forEach(btn => {
+  btn.addEventListener('click', () => handleAnswer(btn.dataset.verb, btn));
+  btn.addEventListener('touchstart', e => { e.preventDefault(); handleAnswer(btn.dataset.verb, btn); }, {passive:false});
+});
+document.addEventListener('keydown', e => {
+  if (!$('screen-game').classList.contains('active')) return;
+  const map = {q:'make',w:'do',e:'take',r:'have'};
+  const verb = map[e.key.toLowerCase()];
+  if (verb) { const b = document.querySelector(`.verb-btn[data-verb="${verb}"]`); if(b) handleAnswer(verb,b); }
+});
+
+function handleAnswer(verb, btn) {
+  if (state.locked) return;
+  state.locked = true;
+  clearInterval(state.timer);
+  const correct = verb === state.currentCard.v;
+  const pi = state.currentPlayer-1;
+  const pName = state.currentPlayer===1 ? state.p1 : state.p2;
+  const noun = (state.currentCard.a ? state.currentCard.a+' ' : '') + state.currentCard.n;
+
+  state.history.push({ noun, correct:state.currentCard.v, answered:verb, wasCorrect:correct, player:pName, diff:state.currentCard.d });
+
+  if (correct) {
+    state.scores[pi]++;
+    btn.classList.add('correct-flash');
+    showFeedback('✓ Correct!','correct');
+  } else {
+    btn.classList.add('wrong-flash');
+    document.querySelector(`.verb-btn[data-verb="${state.currentCard.v}"]`).style.opacity='1';
+    showFeedback('✗ Wrong!','wrong');
+  }
+  updateScoreCards();
+  state.currentPlayer = state.currentPlayer===1?2:1;
+  setTimeout(() => { hideFeedback(); document.querySelectorAll('.verb-btn').forEach(b=>b.style.opacity=''); nextRound(); }, 900);
+}
+
+function handleTimeout() {
+  if (state.locked) return;
+  state.locked = true;
+  const noun = (state.currentCard.a ? state.currentCard.a+' ' : '') + state.currentCard.n;
+  const pName = state.currentPlayer===1 ? state.p1 : state.p2;
+  state.history.push({ noun, correct:state.currentCard.v, answered:'—', wasCorrect:false, player:pName, diff:state.currentCard.d });
+  showFeedback("Time's up!",'timeout');
+  document.querySelector(`.verb-btn[data-verb="${state.currentCard.v}"]`).style.opacity='1';
+  state.currentPlayer = state.currentPlayer===1?2:1;
+  setTimeout(() => { hideFeedback(); document.querySelectorAll('.verb-btn').forEach(b=>b.style.opacity=''); nextRound(); }, 1000);
+}
+
+function showFeedback(text, type) {
+  const el = $('feedback-badge');
+  el.textContent = text; el.className = `feedback-badge ${type} show`;
+}
+function hideFeedback() { $('feedback-badge').classList.remove('show'); }
+
+// ── END ───────────────────────────────────────────────────────────────────────
+function endGame() {
+  clearInterval(state.timer);
+  const s0=state.scores[0], s1=state.scores[1];
+  if (s0>s1)      { $('result-title').textContent=`${state.p1} wins! 🎉`; $('res-p1').className='result-card winner-p1'; $('res-p2').className='result-card'; $('res-p1-crown').textContent='👑'; $('res-p2-crown').textContent=''; }
+  else if(s1>s0)  { $('result-title').textContent=`${state.p2} wins! 🎉`; $('res-p1').className='result-card'; $('res-p2').className='result-card winner-p2'; $('res-p1-crown').textContent=''; $('res-p2-crown').textContent='👑'; }
+  else            { $('result-title').textContent="It's a tie! 🤝"; $('res-p1').className=$('res-p2').className='result-card'; $('res-p1-crown').textContent=$('res-p2-crown').textContent='🤝'; }
+  $('result-sub').textContent='Final Scores';
+  $('res-p1-name').textContent=state.p1; $('res-p2-name').textContent=state.p2;
+  $('res-p1-score').textContent=s0; $('res-p2-score').textContent=s1;
+
+  let html='<div class="history-title">Round History</div>';
+  state.history.forEach((h,i)=>{
+    const cls=h.wasCorrect?'h-correct':'h-wrong';
+    const icon=h.wasCorrect?'✓':'✗';
+    html+=`<div class="history-item">
+      <span style="color:var(--text-dim);font-size:.7rem">${i+1}.</span>
+      <span class="h-noun">${h.noun}</span>
+      <span class="h-answer ${cls}">${icon} ${h.correct.toUpperCase()}</span>
+      <span class="h-diff ${h.diff}">${h.diff}</span>
+      <span class="h-who">${h.player}</span>
+    </div>`;
+  });
+  $('result-history').innerHTML=html;
+  showScreen('result');
+}
+
+$('btn-again').addEventListener('click', () => showScreen('intro'));
+</script>
+</body>
+</html>
